@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+build/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+/bin/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+*.egg
+.venv/
+venv/
+
+# Go
+*.test
+*.prof
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+!.env.example
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+
+# Test reports
+newman-report.json
+test-results/
+playwright-report/
+
+# Coverage
+coverage/
+.nyc_output/

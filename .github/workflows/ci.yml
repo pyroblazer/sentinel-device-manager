@@ -1,0 +1,424 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: "1.25"
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # ─── Lint ──────────────────────────────────────────────────────────────
+  go-lint:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v2.11
+          working-directory: backend/go
+          args: --timeout=5m
+      - name: Lint firmware
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v2.11
+          working-directory: firmware
+          args: --timeout=5m
+
+  python-lint:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install flake8
+      - run: flake8 backend/python/analytics_service --max-line-length=120 --count --statistics
+
+  frontend-lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: cd frontend && npm ci --force
+      - run: cd frontend && npx tsc --noEmit
+
+  # ─── Unit Tests ────────────────────────────────────────────────────────
+  go-tests:
+    name: Go Tests + Coverage
+    runs-on: ubuntu-latest
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run backend tests
+        working-directory: backend/go
+        run: |
+          go test ./... -v -race -coverprofile=coverage.out -covermode=atomic -count=1
+          go tool cover -func=coverage.out
+
+      - name: Enforce 70% coverage (backend)
+        working-directory: backend/go
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${COVERAGE}%"
+          if [ "$(echo "$COVERAGE < 70" | bc -l)" -eq 1 ]; then
+            echo "ERROR: Coverage ${COVERAGE}% is below 70% threshold"
+            exit 1
+          fi
+          echo "Coverage check passed: ${COVERAGE}%"
+
+      - name: Run firmware tests
+        working-directory: firmware
+        run: go test ./... -v -race -count=1
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: backend/go/coverage.out
+
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: cd backend/python && pip install -r analytics_service/requirements.txt pytest httpx
+      - run: cd backend/python && pytest -v --tb=short
+
+  # ─── Integration Tests ─────────────────────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [go-tests, python-tests]
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Create DynamoDB table
+        run: |
+          aws dynamodb create-table \
+            --table-name sentinel-devices \
+            --attribute-definitions AttributeName=device_id,AttributeType=S \
+            --key-schema AttributeName=device_id,KeyType=HASH \
+            --billing-mode PAY_PER_REQUEST \
+            --endpoint-url http://localhost:8000 \
+            --region us-east-1
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Run integration tests
+        working-directory: backend/go
+        run: go test ./tests/integration/... -v -count=1 -timeout 120s
+
+  # ─── E2E Tests (Playwright) ────────────────────────────────────────────
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [go-tests, python-tests]
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Start Go backend
+        run: |
+          cd backend/go
+          go build -o /tmp/sentinel-server ./cmd/server
+          AWS_ENDPOINT_URL=http://localhost:8000 \
+            AWS_REGION=us-east-1 \
+            AWS_ACCESS_KEY_ID=test \
+            AWS_SECRET_ACCESS_KEY=test \
+            AUTH_ENABLED=false \
+            /tmp/sentinel-server &
+        env:
+          AWS_ENDPOINT_URL: http://localhost:8000
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Start Python service
+        run: |
+          cd backend/python
+          pip install -r analytics_service/requirements.txt
+          uvicorn analytics_service.main:app --port 8081 &
+        env:
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Start frontend
+        run: |
+          cd frontend
+          npm ci --force
+          npm run build
+          npx serve -s build -l 3000 &
+        env:
+          REACT_APP_API_BASE: http://localhost:8080
+          REACT_APP_ANALYTICS_BASE: http://localhost:8081
+
+      - name: Wait for services
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/health && break
+            sleep 2
+          done
+
+      - name: Install Playwright
+        working-directory: tests/playwright
+        run: npm ci && npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: tests/playwright
+        run: npx playwright test --project=chromium
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: tests/playwright/playwright-report/
+
+  # ─── Postman Newman API Contract Tests ─────────────────────────────────
+  api-contract-tests:
+    name: API Contract Tests (Newman)
+    runs-on: ubuntu-latest
+    needs: [go-tests, python-tests]
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Start Go backend
+        run: |
+          cd backend/go
+          go build -o /tmp/sentinel-server ./cmd/server
+          AWS_ENDPOINT_URL=http://localhost:8000 \
+            AWS_REGION=us-east-1 \
+            AWS_ACCESS_KEY_ID=test \
+            AWS_SECRET_ACCESS_KEY=test \
+            AUTH_ENABLED=false \
+            /tmp/sentinel-server &
+
+      - name: Start Python service
+        run: |
+          cd backend/python
+          pip install -r analytics_service/requirements.txt
+          uvicorn analytics_service.main:app --port 8081 &
+        env:
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+
+      - name: Wait for services
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/health && break
+            sleep 2
+          done
+
+      - name: Run Newman
+        working-directory: tests/postman
+        run: newman run sentinel-api-collection.json -e sentinel-api-environment.json --reporters cli,json --reporter-json-export newman-report.json
+
+      - name: Upload Newman report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: newman-report
+          path: tests/postman/newman-report.json
+
+  # ─── Security: Trivy Vulnerability Scan ────────────────────────────────
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan (Go)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: backend/go
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          ignorefile: .trivyignore
+
+      - name: Run Trivy filesystem scan (Python)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: backend/python
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          ignorefile: .trivyignore
+
+      - name: Run Trivy filesystem scan (Frontend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: frontend
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          ignorefile: .trivyignore
+
+      - name: Run Trivy on Docker images
+        run: |
+          docker build -f deploy/docker/Dockerfile.go -t sentinel-go:test backend/go
+          docker build -f deploy/docker/Dockerfile.python -t sentinel-python:test backend/python
+          docker build -f deploy/docker/Dockerfile.frontend -t sentinel-frontend:test frontend
+
+      - name: Scan Go Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sentinel-go:test
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+
+      - name: Scan Python Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sentinel-python:test
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+
+      - name: Scan Frontend Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sentinel-frontend:test
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+
+  # ─── Security: Go Dependency Audit ────────────────────────────────────
+  go-vuln-check:
+    name: Go Vulnerability Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Run govulncheck (backend)
+        working-directory: backend/go
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+      - name: Run govulncheck (firmware)
+        working-directory: firmware
+        run: govulncheck ./...
+
+  # ─── Docker Build Validation ──────────────────────────────────────────
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Go image
+        run: docker build -f deploy/docker/Dockerfile.go -t sentinel-go:test backend/go
+      - name: Build Python image
+        run: docker build -f deploy/docker/Dockerfile.python -t sentinel-python:test backend/python
+      - name: Build Frontend image
+        run: docker build -f deploy/docker/Dockerfile.frontend -t sentinel-frontend:test frontend
+      - name: Build Firmware image
+        run: docker build -f deploy/docker/Dockerfile.firmware -t sentinel-firmware:test firmware
+
+  # ─── Observability Config Validation ──────────────────────────────────
+  obs-validate:
+    name: Observability Config Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Prometheus config
+        run: |
+          docker run --rm --entrypoint promtool -v $PWD/observability/prometheus:/etc/prometheus \
+            prom/prometheus:v2.51.0 check config /etc/prometheus/prometheus.yml
+      - name: Validate Prometheus alert rules
+        run: |
+          docker run --rm --entrypoint promtool -v $PWD/observability/prometheus:/etc/prometheus \
+            prom/prometheus:v2.51.0 check rules /etc/prometheus/alert_rules.yml
+      - name: Validate Alertmanager config
+        run: |
+          docker run --rm --entrypoint amtool -v $PWD/observability/alertmanager:/etc/alertmanager \
+            prom/alertmanager:v0.27.0 check-config /etc/alertmanager/alertmanager.yml
+
+  # ─── Summary ──────────────────────────────────────────────────────────
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [go-lint, python-lint, frontend-lint, go-tests, python-tests, integration-tests, e2e-tests, api-contract-tests, trivy-scan, go-vuln-check, docker-build, obs-validate]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          JOBS=("${{ needs.go-lint.result }}" "${{ needs.python-lint.result }}" "${{ needs.frontend-lint.result }}" "${{ needs.go-tests.result }}" "${{ needs.python-tests.result }}" "${{ needs.integration-tests.result }}" "${{ needs.e2e-tests.result }}" "${{ needs.api-contract-tests.result }}" "${{ needs.trivy-scan.result }}" "${{ needs.go-vuln-check.result }}" "${{ needs.docker-build.result }}" "${{ needs.obs-validate.result }}")
+          for job in "${JOBS[@]}"; do
+            if [ "$job" != "success" ]; then
+              echo "FAILED: A required job did not succeed (status: $job)"
+              exit 1
+            fi
+          done
+          echo "All CI checks passed!"

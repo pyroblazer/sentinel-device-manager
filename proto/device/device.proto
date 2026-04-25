@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package sentinel.device.v1;
+
+option go_package = "github.com/sentinel-device-manager/backend/go/pkg/api";
+
+// DeviceService manages embedded device lifecycle and communication.
+service DeviceService {
+  // Register enrolls a new device into the platform.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // SendHeartbeat receives periodic health updates from devices.
+  rpc SendHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // SendEvent ingests a security or telemetry event from a device.
+  rpc SendEvent(EventRequest) returns (EventResponse);
+
+  // StreamFirmware streams a firmware binary to a device in chunks.
+  rpc StreamFirmware(FirmwareRequest) returns (stream FirmwareChunk);
+
+  // ReportFirmwareStatus receives firmware update status from a device.
+  rpc ReportFirmwareStatus(FirmwareStatusRequest) returns (FirmwareStatusResponse);
+
+  // GetConfig retrieves the current configuration for a device.
+  rpc GetConfig(ConfigRequest) returns (ConfigResponse);
+}
+
+// Enums
+
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+  CAMERA = 1;
+  ACCESS_CONTROL = 2;
+  ALARM = 3;
+  SENSOR = 4;
+}
+
+enum DeviceStatus {
+  DEVICE_STATUS_UNSPECIFIED = 0;
+  ONLINE = 1;
+  OFFLINE = 2;
+  MAINTENANCE = 3;
+  DECOMMISSIONED = 4;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  INFO = 1;
+  WARNING = 2;
+  CRITICAL = 3;
+}
+
+enum FirmwareDeploymentStatus {
+  FIRMWARE_DEPLOYMENT_STATUS_UNSPECIFIED = 0;
+  PENDING = 1;
+  DOWNLOADING = 2;
+  VERIFYING = 3;
+  APPLYING = 4;
+  COMPLETED = 5;
+  FAILED = 6;
+  ROLLED_BACK = 7;
+}
+
+// Messages
+
+message Device {
+  string device_id = 1;
+  string serial_number = 2;
+  DeviceType device_type = 3;
+  string model = 4;
+  string firmware_version = 5;
+  DeviceStatus status = 6;
+  string site_id = 7;
+  string organization_id = 8;
+  string ip_address = 9;
+  string mac_address = 10;
+  int64 last_heartbeat = 11;
+  map<string, string> config = 12;
+  int64 created_at = 13;
+  int64 updated_at = 14;
+}
+
+message DeviceHealth {
+  string device_id = 1;
+  double cpu_usage = 2;
+  double memory_usage = 3;
+  double temperature_c = 4;
+  int64 uptime_seconds = 5;
+  double network_latency_ms = 6;
+  int64 last_reported = 7;
+}
+
+message Event {
+  string event_id = 1;
+  string device_id = 2;
+  string event_type = 3;
+  Severity severity = 4;
+  map<string, string> payload = 5;
+  int64 timestamp = 6;
+}
+
+message Firmware {
+  string version = 1;
+  DeviceType device_type = 2;
+  string binary_url = 3;
+  string checksum_sha256 = 4;
+  string release_notes = 5;
+  int64 created_at = 6;
+}
+
+// Request/Response messages
+
+message RegisterRequest {
+  string serial_number = 1;
+  DeviceType device_type = 2;
+  string model = 3;
+  string site_id = 4;
+  string organization_id = 5;
+  string ip_address = 6;
+  string mac_address = 7;
+  map<string, string> config = 8;
+}
+
+message RegisterResponse {
+  Device device = 1;
+}
+
+message HeartbeatRequest {
+  string device_id = 1;
+  DeviceHealth health = 2;
+}
+
+message HeartbeatResponse {
+  bool config_updated = 1;
+  map<string, string> config = 2;
+  string pending_firmware_version = 3;
+}
+
+message EventRequest {
+  Event event = 1;
+}
+
+message EventResponse {
+  string event_id = 1;
+  bool acknowledged = 2;
+}
+
+message FirmwareRequest {
+  string device_id = 1;
+  string version = 2;
+  DeviceType device_type = 3;
+}
+
+message FirmwareChunk {
+  string version = 1;
+  int32 chunk_index = 2;
+  int32 total_chunks = 3;
+  bytes data = 4;
+  string checksum_sha256 = 5;
+}
+
+message FirmwareStatusRequest {
+  string device_id = 1;
+  string version = 2;
+  FirmwareDeploymentStatus status = 3;
+  string error_message = 4;
+}
+
+message FirmwareStatusResponse {
+  bool acknowledged = 1;
+}
+
+message ConfigRequest {
+  string device_id = 1;
+}
+
+message ConfigResponse {
+  map<string, string> config = 1;
+  string firmware_version = 2;
+}

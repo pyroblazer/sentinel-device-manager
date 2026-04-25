@@ -1,0 +1,6 @@
+# nth-check: ReDoS in react-scripts transitive dep — fix requires react-scripts 6 (unreleased)
+CVE-2021-3803
+# serialize-javascript: RCE via RegExp.flags — transitive dep of react-scripts, no update path
+GHSA-5c6j-r48x-rmvq
+# underscore: DoS via recursive data — transitive dep of react-scripts, no update path
+CVE-2026-27601

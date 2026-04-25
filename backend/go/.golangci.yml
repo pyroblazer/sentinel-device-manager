@@ -1,0 +1,33 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosec
+
+linters-settings:
+  gosec:
+    excludes:
+      - G104
+  errcheck:
+    check-type-assertions: false
+    exclude-functions:
+      - (io.Writer).Write
+      - (net/http.ResponseWriter).Write
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+    - path: pkg/api/
+      linters:
+        - all

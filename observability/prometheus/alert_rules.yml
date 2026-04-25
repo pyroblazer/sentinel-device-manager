@@ -1,0 +1,111 @@
+groups:
+  - name: api_alerts
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: rate(sentinel_http_requests_total{status_code=~"5.."}[5m]) / rate(sentinel_http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 5% (current value: {{ $value }})"
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, rate(sentinel_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P95 latency detected"
+          description: "P95 latency is above 2 seconds (current value: {{ $value }}s)"
+
+      - alert: HighLatencyP99
+        expr: histogram_quantile(0.99, rate(sentinel_http_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High P99 latency detected"
+          description: "P99 latency is above 5 seconds (current value: {{ $value }}s)"
+
+      - alert: HighRequestRate
+        expr: rate(sentinel_http_requests_total[1m]) > 1000
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate detected"
+          description: "Request rate is above 1000 req/s (current value: {{ $value }})"
+
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 1024 MB (current value: {{ $value }} MB)"
+
+      - alert: HighGoroutines
+        expr: go_goroutines > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High goroutine count detected"
+          description: "Goroutine count is above 1000 (current value: {{ $value }})"
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "Service {{ $labels.instance }} has been down for more than 1 minute"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      - alert: HighDBLatency
+        expr: histogram_quantile(0.95, rate(sentinel_db_query_duration_seconds_bucket[5m])) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database latency detected"
+          description: "P95 DB query latency is above 0.5 seconds (current value: {{ $value }}s)"
+
+      - alert: DBErrorRateSpike
+        expr: rate(sentinel_db_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database error rate spike detected"
+          description: "DB error rate is above 0.1 errors/s (current value: {{ $value }})"
+
+  - name: business_alerts
+    interval: 60s
+    rules:
+      - alert: IncidentSpike
+        expr: rate(sentinel_incidents_created_total[5m]) > 0.03
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Incident spike detected"
+          description: "Incident creation rate is unusually high (current value: {{ $value }})"
+
+      - alert: ComplianceFailure
+        expr: increase(sentinel_compliance_checks_total{status="FAIL"}[1h]) > 5
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Compliance failures detected"
+          description: "More than 5 compliance check failures in the last hour (current value: {{ $value }})"
