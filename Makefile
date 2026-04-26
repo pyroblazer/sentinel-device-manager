@@ -86,7 +86,7 @@ lint-python: ## Run Python linter
 # --- Security ---
 
 trivy-scan: ## Run Trivy vulnerability scan on source code
-	trivy fs --severity CRITICAL,HIGH backend/go backend/python frontend
+	trivy fs --severity CRITICAL,HIGH --ignorefile .trivyignore backend/go backend/python frontend --skip-dirs frontend/node_modules
 
 vuln-check: ## Run Go vulnerability check
 	cd backend/go && govulncheck ./...

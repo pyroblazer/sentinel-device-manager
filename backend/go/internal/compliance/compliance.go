@@ -318,18 +318,20 @@ func (cr *ComplianceReporter) GetRetentionPolicies() []DataRetentionPolicy {
 
 // HandleComplianceReport is an HTTP handler returning the full compliance report.
 func (cr *ComplianceReporter) HandleComplianceReport(w http.ResponseWriter, r *http.Request) {
-	cr.mu.RLock()
-	defer cr.mu.RUnlock()
+	summary := cr.GetSummary()
+	openIncidents := cr.GetIncidents("OPEN")
 
+	cr.mu.RLock()
 	report := map[string]interface{}{
-		"generated_at":       time.Now().UTC(),
-		"version":            cr.version,
-		"standards":          cr.standards,
-		"summary":            cr.GetSummary(),
-		"data_retention":     cr.retention,
-		"open_incidents":     len(cr.GetIncidents("OPEN")),
-		"total_incidents":    len(cr.incidents),
+		"generated_at":    time.Now().UTC(),
+		"version":         cr.version,
+		"standards":       cr.standards,
+		"summary":         summary,
+		"data_retention":  cr.retention,
+		"open_incidents":  len(openIncidents),
+		"total_incidents": len(cr.incidents),
 	}
+	cr.mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(report); err != nil {
@@ -353,9 +355,6 @@ func (cr *ComplianceReporter) HandleStandardsList(w http.ResponseWriter, r *http
 
 // HandleIncidents returns incident records.
 func (cr *ComplianceReporter) HandleIncidents(w http.ResponseWriter, r *http.Request) {
-	cr.mu.RLock()
-	defer cr.mu.RUnlock()
-
 	status := r.URL.Query().Get("status")
 	incidents := cr.GetIncidents(status)
 

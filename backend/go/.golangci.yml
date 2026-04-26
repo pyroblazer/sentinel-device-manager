@@ -11,23 +11,21 @@ linters:
     - unused
     - ineffassign
     - gosec
-
-linters-settings:
-  gosec:
-    excludes:
-      - G104
-  errcheck:
-    check-type-assertions: false
-    exclude-functions:
-      - (io.Writer).Write
-      - (net/http.ResponseWriter).Write
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-    - path: pkg/api/
-      linters:
-        - all
+  settings:
+    gosec:
+      excludes:
+        - G104
+    errcheck:
+      check-type-assertions: false
+      exclude-functions:
+        - (io.Writer).Write
+        - (net/http.ResponseWriter).Write
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+      - path: pkg/api/
+        linters:
+          - all

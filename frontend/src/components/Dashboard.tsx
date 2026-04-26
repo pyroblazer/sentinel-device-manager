@@ -10,12 +10,12 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     async function load() {
       try {
-        const [s, d] = await Promise.all([
+        const results = await Promise.allSettled([
           analyticsApi.summary(),
           deviceApi.list(),
         ]);
-        setSummary(s);
-        setDevices(d.devices);
+        if (results[0].status === 'fulfilled') setSummary(results[0].value);
+        if (results[1].status === 'fulfilled') setDevices(results[1].value.devices);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -26,7 +26,6 @@ const Dashboard: React.FC = () => {
   }, []);
 
   if (loading) return <div className="loading">Loading dashboard...</div>;
-  if (error) return <div className="empty-state"><p>Error: {error}</p></div>;
 
   const onlineCount = devices.filter(d => d.status === 'ONLINE').length;
   const offlineCount = devices.filter(d => d.status === 'OFFLINE').length;

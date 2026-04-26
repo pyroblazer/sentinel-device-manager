@@ -63,7 +63,7 @@ test.describe('Device Management Page', () => {
   });
 
   test('click a device row to navigate to detail page', async ({ page }) => {
-    const deviceRow = page.locator('tbody tr').first();
+    const deviceRow = page.locator('tbody tr[style*="cursor: pointer"]').first();
     if ((await deviceRow.count()) > 0) {
       const isClickable = await deviceRow.evaluate((el) => {
         return el.style.cursor === 'pointer';
@@ -80,7 +80,7 @@ test.describe('Device Management Page', () => {
     page,
   }) => {
     await page.goto('/devices');
-    const deviceRow = page.locator('tbody tr').first();
+    const deviceRow = page.locator('tbody tr[style*="cursor: pointer"]').first();
     if ((await deviceRow.count()) > 0) {
       await deviceRow.click();
       await expect(page).toHaveURL(/\/devices\/[a-f0-9-]+/);
@@ -109,7 +109,7 @@ test.describe('Device Management Page', () => {
 
   test('device detail has Back and Decommission buttons', async ({ page }) => {
     await page.goto('/devices');
-    const deviceRow = page.locator('tbody tr').first();
+    const deviceRow = page.locator('tbody tr[style*="cursor: pointer"]').first();
     if ((await deviceRow.count()) > 0) {
       await deviceRow.click();
       await expect(

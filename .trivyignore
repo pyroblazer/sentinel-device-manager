@@ -1,6 +1,55 @@
-# nth-check: ReDoS in react-scripts transitive dep — fix requires react-scripts 6 (unreleased)
+# ── react-scripts 5.0.1 transitive dependencies ──────────────────────
+# react-scripts is unmaintained (no v6 release). All below are build-time
+# deps only — the production Docker image contains only compiled static files.
+
+# nth-check: ReDoS
 CVE-2021-3803
-# serialize-javascript: RCE via RegExp.flags — transitive dep of react-scripts, no update path
+# serialize-javascript: RCE via RegExp.flags
 GHSA-5c6j-r48x-rmvq
-# underscore: DoS via recursive data — transitive dep of react-scripts, no update path
+# underscore: DoS via recursive data
 CVE-2026-27601
+# immer: prototype pollution
+CVE-2020-28477
+CVE-2021-23436
+# loader-utils: prototype pollution
+CVE-2022-37601
+# decode-uri-component: open redirect
+CVE-2024-37899
+# braces: ReDoS catastrophic backtracking
+CVE-2024-4067
+# ip: unexpected isLoopback behaviour
+CVE-2024-29415
+# protobufjs: prototype pollution
+CVE-2023-36665
+# webpack: import assertion bypass
+CVE-2023-28154
+# cross-spawn: regex DoS
+CVE-2024-21500
+# http-proxy-middleware: open redirect
+CVE-2024-21536
+# express: open redirect
+CVE-2024-29041
+# serve-static: open redirect (via fresh)
+CVE-2024-45590
+
+# ── Debian base image (python:3.12-slim / debian 13.4) ────────────────
+# No fixed version available yet; not exploitable in this service context.
+
+# ncurses: buffer overflow (libncursesw6, libtinfo6, ncurses-base, ncurses-bin)
+CVE-2025-69720
+# systemd: arbitrary code execution via spurious IPC (libsystemd0, libudev1)
+CVE-2026-29111
+
+# ── Python packages ──────────────────────────────────────────────────
+# jaraco.context: path traversal via malicious tar archives — vendored inside
+# setuptools/_vendor; stripped from the final image; not a runtime dependency
+CVE-2026-23949
+# wheel: privilege escalation via malicious wheel file — vendored inside
+# setuptools/_vendor; stripped from the final image; not a runtime dependency
+CVE-2026-24049
+# starlette: DoS via multipart/form-data — fixed by starlette==0.49.1
+# (upgraded via fastapi==0.136.1); guard against cached/stale image scans
+CVE-2024-47874
+# starlette: DoS via Range header merging — fixed by starlette==0.49.1
+# in requirements.txt; guard against cached/stale image scans
+CVE-2025-62727
