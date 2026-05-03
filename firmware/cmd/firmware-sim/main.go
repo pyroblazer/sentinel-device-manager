@@ -22,6 +22,7 @@ func main() {
 	mac := envOrDefault("DEVICE_MAC", "AA:BB:CC:DD:EE:FF")
 	model := envOrDefault("DEVICE_MODEL", "D30-SIM")
 	apiURL := envOrDefault("API_URL", "http://localhost:8080")
+	analyticsURL := envOrDefault("ANALYTICS_URL", "http://localhost:8081")
 
 	// Initialize HAL
 	h := hal.NewLinuxHAL(serial, mac, model)
@@ -40,26 +41,36 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Register device
+	// Register device with retries (go-service may not be ready yet)
 	logger.Printf("Registering device %s...", serial)
-	regResp, err := client.Register(ctx, map[string]interface{}{
-		"serial_number":   h.GetSerialNumber(),
-		"device_type":     "CAMERA",
-		"model":           h.GetModelName(),
-		"site_id":         "site-simulation",
-		"organization_id": "org-simulation",
-		"ip_address":      "192.168.1.200",
-		"mac_address":     h.GetMACAddress(),
-		"config":          map[string]string{"resolution": "4K", "retention_days": "30"},
-	})
-	if err != nil {
-		logger.Printf("Registration failed (will continue in standalone mode): %v", err)
-	} else {
+	for attempt := 1; attempt <= 10; attempt++ {
+		regResp, err := client.Register(ctx, map[string]interface{}{
+			"serial_number":   h.GetSerialNumber(),
+			"device_type":     "CAMERA",
+			"model":           h.GetModelName(),
+			"site_id":         "site-simulation",
+			"organization_id": "org-simulation",
+			"ip_address":      "192.168.1.200",
+			"mac_address":     h.GetMACAddress(),
+			"config":          map[string]string{"resolution": "4K", "retention_days": "30"},
+		})
+		if err != nil {
+			logger.Printf("Registration attempt %d failed: %v", attempt, err)
+			if attempt < 10 {
+				time.Sleep(3 * time.Second)
+				continue
+			}
+			logger.Printf("All registration attempts failed, running in standalone mode")
+			break
+		}
 		if deviceID, ok := regResp["device_id"].(string); ok && deviceID != "" {
 			client.SetDeviceID(deviceID)
 			logger.Printf("Registered with device_id: %s", deviceID)
-		} else {
-			logger.Printf("Registration response missing device_id, running in standalone mode")
+			break
+		}
+		logger.Printf("Registration response missing device_id (attempt %d)", attempt)
+		if attempt < 10 {
+			time.Sleep(3 * time.Second)
 		}
 	}
 
@@ -95,10 +106,10 @@ func main() {
 			}
 
 			// Randomly generate events
-			if rand.Float64() > 0.7 {
+			if rand.Float64() > 0.7 && client.DeviceID() != "" {
 				eventTypes := []string{"MOTION_DETECTED", "DOOR_OPENED", "TEMPERATURE_THRESHOLD", "TAMPER_DETECTED"}
 				evt := eventTypes[rand.Intn(len(eventTypes))]
-				_, err := client.SendEvent(ctx, apiURL, map[string]interface{}{
+				_, err := client.SendEvent(ctx, analyticsURL, map[string]interface{}{
 					"device_id":  client.DeviceID(),
 					"event_type": evt,
 					"severity":   randomSeverity(),

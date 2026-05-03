@@ -76,6 +76,7 @@ services:
       - DEVICE_MAC=AA:BB:CC:DD:EE:FF
       - DEVICE_MODEL=D30-SIM
       - API_URL=http://go-service:8080
+      - ANALYTICS_URL=http://python-service:8081
     depends_on:
       - go-service
 
@@ -88,5 +89,6 @@ services:
       - DEVICE_MAC=11:22:33:44:55:66
       - DEVICE_MODEL=S10-SIM
       - API_URL=http://go-service:8080
+      - ANALYTICS_URL=http://python-service:8081
     depends_on:
       - go-service
