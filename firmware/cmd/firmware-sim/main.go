@@ -55,9 +55,11 @@ func main() {
 	if err != nil {
 		logger.Printf("Registration failed (will continue in standalone mode): %v", err)
 	} else {
-		if deviceID, ok := regResp["device_id"].(string); ok {
-			client = network.NewClient(apiURL, deviceID)
+		if deviceID, ok := regResp["device_id"].(string); ok && deviceID != "" {
+			client.SetDeviceID(deviceID)
 			logger.Printf("Registered with device_id: %s", deviceID)
+		} else {
+			logger.Printf("Registration response missing device_id, running in standalone mode")
 		}
 	}
 
@@ -96,8 +98,8 @@ func main() {
 			if rand.Float64() > 0.7 {
 				eventTypes := []string{"MOTION_DETECTED", "DOOR_OPENED", "TEMPERATURE_THRESHOLD", "TAMPER_DETECTED"}
 				evt := eventTypes[rand.Intn(len(eventTypes))]
-				_, err := client.SendEvent(ctx, map[string]interface{}{
-					"device_id":  "sim",
+				_, err := client.SendEvent(ctx, apiURL, map[string]interface{}{
+					"device_id":  client.DeviceID(),
 					"event_type": evt,
 					"severity":   randomSeverity(),
 					"payload":    map[string]string{"source": "firmware-sim"},

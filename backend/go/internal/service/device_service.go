@@ -167,3 +167,30 @@ func (s *DeviceService) DecommissionDevice(ctx context.Context, deviceID string)
 	status := model.StatusDecommissioned
 	return s.UpdateDevice(ctx, deviceID, UpdateDeviceInput{Status: &status})
 }
+
+// HeartbeatInput contains optional health telemetry fields from a device heartbeat.
+type HeartbeatInput struct {
+	CPUUsage         *float64 `json:"cpu_usage,omitempty"`
+	MemoryUsage      *float64 `json:"memory_usage,omitempty"`
+	TemperatureC     *float64 `json:"temperature_c,omitempty"`
+	UptimeSeconds    *int64   `json:"uptime_seconds,omitempty"`
+	NetworkLatencyMs *int64   `json:"network_latency_ms,omitempty"`
+}
+
+// Heartbeat updates the device's last_heartbeat timestamp and sets status to ONLINE.
+func (s *DeviceService) Heartbeat(ctx context.Context, deviceID string, input HeartbeatInput) (*model.Device, error) {
+	device, err := s.repo.GetByID(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get device %s: %w", deviceID, err)
+	}
+
+	now := time.Now().UTC()
+	device.LastHeartbeat = now
+	device.Status = model.StatusOnline
+	device.UpdatedAt = now
+
+	if err := s.repo.Update(ctx, device); err != nil {
+		return nil, fmt.Errorf("update device %s: %w", deviceID, err)
+	}
+	return device, nil
+}

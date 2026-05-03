@@ -26,7 +26,12 @@ type TracingConfig struct {
 
 // InitTracer creates and registers a global OpenTelemetry tracer provider.
 // Returns a shutdown function that must be called on application exit.
+// If Endpoint is empty or "none", tracing is disabled and nil is returned.
 func InitTracer(cfg TracingConfig) (func(context.Context) error, error) {
+	if cfg.Endpoint == "" || cfg.Endpoint == "none" {
+		return nil, nil
+	}
+
 	ctx := context.Background()
 
 	var opts []otlptracegrpc.Option

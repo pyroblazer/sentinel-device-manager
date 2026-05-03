@@ -34,6 +34,7 @@ func (h *RESTHandler) RegisterRoutes(r chi.Router) {
 			r.Get("/", h.GetDevice)
 			r.Put("/", h.UpdateDevice)
 			r.Delete("/", h.DeleteDevice)
+			r.Post("/heartbeat", h.Heartbeat)
 		})
 	})
 }
@@ -141,6 +142,30 @@ func (h *RESTHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Heartbeat handles POST /api/v1/devices/{deviceID}/heartbeat.
+// Updates the device's last_heartbeat timestamp and returns the updated device.
+func (h *RESTHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
+	deviceID := chi.URLParam(r, "deviceID")
+	if deviceID == "" {
+		writeError(w, http.StatusBadRequest, "device_id is required")
+		return
+	}
+
+	var input service.HeartbeatInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		// Accept empty body for simple heartbeat pings
+		input = service.HeartbeatInput{}
+	}
+
+	device, err := h.deviceService.Heartbeat(r.Context(), deviceID, input)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "device not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, device)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
