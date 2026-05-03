@@ -92,28 +92,20 @@ Compliance status is tracked at the individual control level with evidence mappi
 
 ## Prerequisites
 
-- Go 1.22+
-- Python 3.12+
-- Node.js 20+
 - Docker & Docker Compose
-- protoc (Protocol Buffer compiler)
-- AWS CLI (for DynamoDB table creation when running without Docker)
 
 ## Running with Docker (Recommended)
 
-1. Copy the environment template for each service:
-
 ```bash
-cp backend/go/.env.example backend/go/.env
-cp backend/python/.env.example backend/python/.env
-cp firmware/.env.example firmware/.env
-cp frontend/.env.example frontend/.env
+make dev
 ```
 
-2. Start all services:
+This single command tears down any previous state, builds all images, starts DynamoDB Local, auto-creates the database table, and launches all services. No environment configuration needed.
+
+Alternatively:
 
 ```bash
-docker-compose up -d
+docker compose up --build
 ```
 
 ### Services
@@ -139,6 +131,8 @@ Expected response:
 ```
 
 ## Running Without Docker
+
+Prerequisites for non-Docker development: Go 1.22+, Python 3.12+, Node.js 20+, protoc, AWS CLI.
 
 ### 1. Start DynamoDB Local
 
@@ -389,10 +383,13 @@ sentinel-device-manager/
 
 | Resource | Location |
 |---|---|
-| Compliance Documentation | `docs/standards/` -- per-standard control details and evidence |
+| Local Development Guide | `docs/LOCAL_DEVELOPMENT.md` |
+| User Guide | `docs/USER_GUIDE.md` |
 | Architecture Decisions | `docs/architecture.md` |
 | API Specification | `docs/api-specification.md` |
 | System Requirements | `docs/requirements.md` |
+| Observability Architecture | `docs/observability.md` |
+| Compliance Documentation | `docs/standards/README.md` -- per-standard control details and evidence |
 | OpenAPI / Swagger | `GET /swagger.json` on the Go backend (port 8080) |
 | Go Package Documentation | Run `go doc ./...` from `backend/go/` |
 

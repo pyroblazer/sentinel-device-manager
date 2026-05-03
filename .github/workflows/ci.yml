@@ -363,7 +363,7 @@ jobs:
       - name: Build Python Docker image
         run: docker build -f deploy/docker/Dockerfile.python -t sentinel-python:test backend/python
       - name: Build Frontend Docker image
-        run: docker build -f deploy/docker/Dockerfile.frontend -t sentinel-frontend:test frontend
+        run: docker build -f deploy/docker/Dockerfile.frontend -t sentinel-frontend:test .
 
       - name: Scan Go Docker image
         uses: aquasecurity/trivy-action@v0.36.0
@@ -421,9 +421,48 @@ jobs:
       - name: Build Python image
         run: docker build -f deploy/docker/Dockerfile.python -t sentinel-python:test backend/python
       - name: Build Frontend image
-        run: docker build -f deploy/docker/Dockerfile.frontend -t sentinel-frontend:test frontend
+        run: docker build -f deploy/docker/Dockerfile.frontend -t sentinel-frontend:test .
       - name: Build Firmware image
         run: docker build -f deploy/docker/Dockerfile.firmware -t sentinel-firmware:test firmware
+
+  # ─── Docker Compose Smoke Test ───────────────────────────────────────
+  docker-compose-smoke:
+    name: Docker Compose Smoke Test
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clean any previous state
+        run: docker compose down -v 2>/dev/null || true
+      - name: Start full stack
+        run: docker compose up --build -d
+      - name: Wait for Go service
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/health; then
+              echo "Go service is healthy"
+              break
+            fi
+            echo "Waiting for Go service... ($$i)"
+            sleep 2
+          done
+          curl -sf http://localhost:8080/health
+      - name: Wait for Python service
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8081/health; then
+              echo "Python service is healthy"
+              break
+            fi
+            echo "Waiting for Python service... ($$i)"
+            sleep 2
+          done
+          curl -sf http://localhost:8081/health
+      - name: Verify frontend
+        run: curl -sf http://localhost:3000 | head -5
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
 
   # ─── Observability Config Validation ──────────────────────────────────
   obs-validate:
@@ -448,12 +487,12 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [go-lint, python-lint, frontend-lint, go-tests, python-tests, integration-tests, e2e-tests, api-contract-tests, trivy-scan, go-vuln-check, docker-build, obs-validate]
+    needs: [go-lint, python-lint, frontend-lint, go-tests, python-tests, integration-tests, e2e-tests, api-contract-tests, trivy-scan, go-vuln-check, docker-build, docker-compose-smoke, obs-validate]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          JOBS=("${{ needs.go-lint.result }}" "${{ needs.python-lint.result }}" "${{ needs.frontend-lint.result }}" "${{ needs.go-tests.result }}" "${{ needs.python-tests.result }}" "${{ needs.integration-tests.result }}" "${{ needs.e2e-tests.result }}" "${{ needs.api-contract-tests.result }}" "${{ needs.trivy-scan.result }}" "${{ needs.go-vuln-check.result }}" "${{ needs.docker-build.result }}" "${{ needs.obs-validate.result }}")
+          JOBS=("${{ needs.go-lint.result }}" "${{ needs.python-lint.result }}" "${{ needs.frontend-lint.result }}" "${{ needs.go-tests.result }}" "${{ needs.python-tests.result }}" "${{ needs.integration-tests.result }}" "${{ needs.e2e-tests.result }}" "${{ needs.api-contract-tests.result }}" "${{ needs.trivy-scan.result }}" "${{ needs.go-vuln-check.result }}" "${{ needs.docker-build.result }}" "${{ needs.docker-compose-smoke.result }}" "${{ needs.obs-validate.result }}")
           for job in "${JOBS[@]}"; do
             if [ "$job" != "success" ]; then
               echo "FAILED: A required job did not succeed (status: $job)"

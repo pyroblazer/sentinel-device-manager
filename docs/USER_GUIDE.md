@@ -195,10 +195,16 @@ Your first 15 minutes with Sentinel Device Manager.
 
 ### Prerequisites
 
-Make sure the platform is running. If you are using Docker Compose:
+Make sure the platform is running. Start it with a single command:
 
 ```bash
-docker-compose up -d
+make dev
+```
+
+Or with Docker Compose directly:
+
+```bash
+docker compose up --build
 ```
 
 This starts:
@@ -206,6 +212,7 @@ This starts:
 - Python service (analytics) on port 8081
 - Frontend on port 3000
 - DynamoDB local on port 8000
+- Firmware simulator (auto-registers a test device)
 
 Open your browser and navigate to `http://localhost:3000`.
 
@@ -1001,9 +1008,9 @@ Sentinel uses JWT (JSON Web Token) authentication with HMAC-SHA256 signing. Each
 
 Clone the repository and run:
 ```bash
-docker-compose up -d
+make dev
 ```
-This starts all services (Go backend on :8080, Python analytics on :8081, React frontend on :3000, DynamoDB local on :8000). The firmware simulator also starts and attempts to register a test device. For local development without Docker, you need Go 1.21+, Python 3.11+, and a DynamoDB local instance.
+This single command tears down any previous state, builds all Docker images, starts DynamoDB Local, auto-creates the database table, and launches all services (Go backend on :8080, Python analytics on :8081, React frontend on :3000, DynamoDB local on :8000). The firmware simulator also starts and automatically registers a test device. No environment configuration is needed. See `docs/LOCAL_DEVELOPMENT.md` for details.
 
 ---
 

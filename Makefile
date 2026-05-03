@@ -13,8 +13,10 @@ help: ## Show this help
 
 # --- Local Development ---
 
-dev: ## Start all services with Docker Compose
-	docker-compose up -d
+dev: ## Fresh start: clean + build + run all services
+	docker compose down -v 2>/dev/null || true
+	docker compose up --build -d
+	@echo ""
 	@echo "Services running:"
 	@echo "  Frontend:   http://localhost:3000"
 	@echo "  Go API:     http://localhost:8080"
@@ -23,8 +25,8 @@ dev: ## Start all services with Docker Compose
 	@echo "  DynamoDB:   http://localhost:8000/shell"
 	@echo "  Swagger:    http://localhost:8080/swagger.json"
 
-dev-down: ## Stop all services
-	docker-compose down
+dev-down: ## Stop all services and remove volumes
+	docker compose down -v
 
 create-table: ## Create DynamoDB table for local development
 	aws dynamodb create-table \
@@ -103,14 +105,15 @@ godoc: ## Start Go documentation server
 
 # --- Docker ---
 
-docker-up: ## Build and start all Docker services
-	docker-compose up -d --build
+docker-up: ## Build and start all Docker services (fresh)
+	docker compose down -v 2>/dev/null || true
+	docker compose up --build -d
 
 docker-down: ## Stop and remove all Docker resources
-	docker-compose down -v
+	docker compose down -v
 
 docker-logs: ## Tail logs from all services
-	docker-compose logs -f
+	docker compose logs -f
 
 # --- Cleanup ---
 
@@ -123,8 +126,9 @@ clean: ## Remove build artifacts
 
 # --- Observability ---
 
-obs-up: ## Start observability stack (Prometheus, Grafana, ELK, OTel)
-	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml up -d
+obs-up: ## Start observability stack (fresh start: app + Prometheus, Grafana, ELK, OTel)
+	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml down -v 2>/dev/null || true
+	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml up --build -d
 	@echo "Observability services running:"
 	@echo "  Prometheus:    http://localhost:9091"
 	@echo "  Grafana:       http://localhost:3001 (admin/admin)"
@@ -134,7 +138,7 @@ obs-up: ## Start observability stack (Prometheus, Grafana, ELK, OTel)
 	@echo "  OTel Collector: localhost:4317 (gRPC), localhost:4318 (HTTP)"
 
 obs-down: ## Stop observability stack
-	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml down
+	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml down -v
 
 obs-logs: ## Tail logs from observability services
 	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml logs -f prometheus grafana elasticsearch logstash kibana otel-collector alertmanager
