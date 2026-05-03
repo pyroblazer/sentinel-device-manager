@@ -59,7 +59,14 @@ func main() {
 	if err != nil {
 		logger.Fatalf("load AWS config: %v", err)
 	}
-	ddbClient := dynamodb.NewFromConfig(cfg)
+
+	var ddbOpts []func(*dynamodb.Options)
+	if ep := envOrDefault("DYNAMODB_ENDPOINT", ""); ep != "" {
+		ddbOpts = append(ddbOpts, func(o *dynamodb.Options) {
+			o.BaseEndpoint = &ep
+		})
+	}
+	ddbClient := dynamodb.NewFromConfig(cfg, ddbOpts...)
 
 	tableName := envOrDefault("DYNAMO_DEVICES_TABLE", "sentinel-devices")
 	restPort := envOrDefault("REST_PORT", "8080")
