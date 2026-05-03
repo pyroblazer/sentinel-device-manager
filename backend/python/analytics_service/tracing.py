@@ -31,7 +31,7 @@ def setup_tracing(
     """
     if endpoint is None:
         endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-        if not endpoint:
+        if not endpoint or endpoint == "none":
             return None
 
     resource = Resource.create({SERVICE_NAME: service_name})
