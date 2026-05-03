@@ -39,6 +39,8 @@ CVE-2024-45590
 CVE-2025-69720
 # systemd: arbitrary code execution via spurious IPC (libsystemd0, libudev1)
 CVE-2026-29111
+# libcap2: privilege escalation via TOCTOU race in cap_set_file() — no fixed version
+CVE-2026-4878
 
 # ── Python packages ──────────────────────────────────────────────────
 # jaraco.context: path traversal via malicious tar archives — vendored inside

@@ -22,18 +22,22 @@ func TestRegister(t *testing.T) {
 		}
 
 		var body map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
 		if body["serial_number"] != "SN-001" {
 			t.Errorf("expected serial_number=SN-001, got %v", body["serial_number"])
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"device_id":     wantID,
 			"serial_number": "SN-001",
 			"status":        "ONLINE",
-		})
+		}); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
@@ -71,7 +75,9 @@ func TestSendHeartbeat(t *testing.T) {
 			t.Errorf("expected /api/v1/devices/dev-123/heartbeat, got %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"}); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
@@ -117,7 +123,9 @@ func TestSendEvent(t *testing.T) {
 			t.Errorf("expected /api/v1/events, got %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"event_id": "evt-001"})
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{"event_id": "evt-001"}); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
@@ -143,10 +151,12 @@ func TestGetConfig(t *testing.T) {
 			t.Errorf("expected /api/v1/devices/dev-456, got %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"device_id": "dev-456",
 			"config":    map[string]string{"resolution": "4K"},
-		})
+		}); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
@@ -190,7 +200,7 @@ func TestSetDeviceID(t *testing.T) {
 func TestDecodeResponseNonJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("not json"))
+		_, _ = w.Write([]byte("not json"))
 	}))
 	defer srv.Close()
 

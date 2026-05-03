@@ -105,23 +105,38 @@ func TestInitTracerNoEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitTracer failed: %v", err)
 	}
-	if shutdown == nil {
-		t.Error("expected non-nil shutdown function")
+	if shutdown != nil {
+		t.Error("expected nil shutdown when endpoint is empty (tracing disabled)")
 	}
-	_ = shutdown(context.Background())
+}
+
+func TestInitTracerEndpointNone(t *testing.T) {
+	shutdown, err := InitTracer(TracingConfig{
+		ServiceName: "test",
+		Endpoint:    "none",
+		Insecure:    true,
+	})
+	if err != nil {
+		t.Fatalf("InitTracer failed: %v", err)
+	}
+	if shutdown != nil {
+		t.Error("expected nil shutdown when endpoint is 'none' (tracing disabled)")
+	}
 }
 
 func TestInitTracerWithSampleRate(t *testing.T) {
 	shutdown, err := InitTracer(TracingConfig{
 		ServiceName: "test",
-		Endpoint:    "",
+		Endpoint:    "localhost:4317",
 		Insecure:    true,
 		SampleRate:  0.5,
 	})
 	if err != nil {
 		t.Fatalf("InitTracer with sample rate failed: %v", err)
 	}
-	_ = shutdown(context.Background())
+	if shutdown != nil {
+		_ = shutdown(context.Background())
+	}
 }
 
 func TestMeasureDBCall(t *testing.T) {

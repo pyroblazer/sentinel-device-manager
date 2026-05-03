@@ -316,3 +316,58 @@ func TestCreateDevice_AllTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestDeleteDevice_NotFound(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewDeviceService(repo)
+
+	err := svc.DeleteDevice(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for deleting nonexistent device")
+	}
+}
+
+func TestHeartbeat_Success(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewDeviceService(repo)
+
+	device, _ := svc.CreateDevice(context.Background(), CreateDeviceInput{
+		SerialNumber: "VKD-CAM-001", DeviceType: model.DeviceTypeCamera,
+		SiteID: "site-001", OrganizationID: "org-001",
+	})
+
+	updated, err := svc.Heartbeat(context.Background(), device.DeviceID, HeartbeatInput{})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if updated.Status != model.StatusOnline {
+		t.Errorf("expected ONLINE, got %s", updated.Status)
+	}
+	if updated.LastHeartbeat.IsZero() {
+		t.Error("expected last_heartbeat to be set")
+	}
+}
+
+func TestHeartbeat_NotFound(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewDeviceService(repo)
+
+	_, err := svc.Heartbeat(context.Background(), "nonexistent", HeartbeatInput{})
+	if err == nil {
+		t.Fatal("expected error for nonexistent device")
+	}
+}
+
+func TestCreateDevice_MissingDeviceType(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewDeviceService(repo)
+
+	_, err := svc.CreateDevice(context.Background(), CreateDeviceInput{
+		SerialNumber: "VKD-CAM-001",
+		SiteID:       "site-001",
+		OrganizationID: "org-001",
+	})
+	if err == nil {
+		t.Fatal("expected error for missing device_type")
+	}
+}

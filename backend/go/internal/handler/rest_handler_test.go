@@ -252,3 +252,97 @@ func TestUpdateDeviceEndpoint(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 }
+
+func TestUpdateDevice_InvalidBody(t *testing.T) {
+	repo := newTestRepo()
+	svc := service.NewDeviceService(repo)
+	h := NewRESTHandler(svc)
+
+	r := chi.NewRouter()
+	h.RegisterRoutes(r)
+
+	device, _ := svc.CreateDevice(context.Background(), service.CreateDeviceInput{
+		SerialNumber: "VKD-CAM-001", DeviceType: model.DeviceTypeCamera,
+		SiteID: "site-001", OrganizationID: "org-001",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/devices/"+device.DeviceID, bytes.NewReader([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateDevice_NotFound(t *testing.T) {
+	repo := newTestRepo()
+	svc := service.NewDeviceService(repo)
+	h := NewRESTHandler(svc)
+
+	r := chi.NewRouter()
+	h.RegisterRoutes(r)
+
+	body := map[string]interface{}{"model": "D50"}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/devices/nonexistent", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestDeleteDevice_NotFound(t *testing.T) {
+	repo := newTestRepo()
+	svc := service.NewDeviceService(repo)
+	h := NewRESTHandler(svc)
+
+	r := chi.NewRouter()
+	h.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/devices/nonexistent", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestParseDeviceType(t *testing.T) {
+	if parseDeviceType("") != nil {
+		t.Error("expected nil for empty string")
+	}
+	result := parseDeviceType("CAMERA")
+	if result == nil || *result != model.DeviceTypeCamera {
+		t.Error("expected CAMERA device type")
+	}
+}
+
+func TestParseDeviceStatus(t *testing.T) {
+	if parseDeviceStatus("") != nil {
+		t.Error("expected nil for empty string")
+	}
+	result := parseDeviceStatus("ONLINE")
+	if result == nil || *result != model.StatusOnline {
+		t.Error("expected ONLINE status")
+	}
+}
+
+func TestParseStringPtr(t *testing.T) {
+	if parseStringPtr("") != nil {
+		t.Error("expected nil for empty string")
+	}
+	result := parseStringPtr("test")
+	if result == nil || *result != "test" {
+		t.Error("expected 'test' string pointer")
+	}
+}
