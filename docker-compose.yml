@@ -1,27 +1,27 @@
-version: "3.9"
-
 services:
   dynamodb:
     image: amazon/dynamodb-local:latest
     ports:
       - "8000:8000"
     command: "-jar DynamoDBLocal.jar -inMemory"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/shell/ || exit 1"]
-      interval: 5s
-      retries: 5
 
   init-dynamodb:
     image: amazon/aws-cli:latest
     depends_on:
-      dynamodb:
-        condition: service_healthy
+      - dynamodb
     environment:
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_REGION=us-east-1
     entrypoint: >
       /bin/sh -c "
+        echo 'Waiting for DynamoDB Local...'
+        for i in $$(seq 1 30); do
+          aws dynamodb list-tables --endpoint-url http://dynamodb:8000 --region us-east-1 2>/dev/null && break
+          echo \"Attempt $$i: DynamoDB not ready, retrying in 2s...\"
+          sleep 2
+        done
+        echo 'Creating sentinel-devices table...'
         aws dynamodb create-table
           --table-name sentinel-devices
           --attribute-definitions AttributeName=device_id,AttributeType=S
@@ -30,6 +30,7 @@ services:
           --endpoint-url http://dynamodb:8000
           --region us-east-1
         2>/dev/null || echo 'Table already exists, continuing...'
+        echo 'DynamoDB initialization complete.'
       "
 
   go-service:

@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# CI
+.github
+
+# Documentation
+docs
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Python
+__pycache__
+*.pyc
+backend/python/venv
+backend/python/.venv
+
+# Go test/cache
+backend/go/bin
+backend/go/coverage.out
+
+# Node (only needed for frontend build, but we want frontend/node_modules)
+node_modules
+tests/playwright/node_modules
+
+# Docker / deploy configs (not needed inside frontend build)
+observability
+deploy/k8s
+
+# Tests
+tests
+
+# Env files
+.env
+.env.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude / misc
+.claude
+.trivyignore
+CLAUDE.md
+LICENSE
+Makefile
+README.md
