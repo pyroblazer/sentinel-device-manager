@@ -31,6 +31,11 @@ CVE-2024-21536
 CVE-2024-29041
 # serve-static: open redirect (via fresh)
 CVE-2024-45590
+# @babel/plugin-transform-modules-systemjs: arbitrary file access
+CVE-2026-44728
+# react-scripts transitive deps — build-time only, not in production image
+CVE-2026-6321
+CVE-2026-6322
 
 # ── Debian base image (python:3.12-slim / debian 13.4) ────────────────
 # No fixed version available yet; not exploitable in this service context.

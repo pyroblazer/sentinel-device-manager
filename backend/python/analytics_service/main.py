@@ -28,7 +28,7 @@ tracer_shutdown = setup_tracing(app, service_name="sentinel-analytics")
 
 store = EventStore()
 
-import os
+import os  # noqa: E402
 if os.getenv("DEMO_MODE", "false").lower() == "true" or os.getenv("VERCEL", ""):
     from .seed import seed_demo_data
     seed_demo_data(store)

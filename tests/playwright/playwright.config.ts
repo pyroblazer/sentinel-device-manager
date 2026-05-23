@@ -16,10 +16,19 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    storageState: 'playwright/.auth/user.json',
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: {
+        storageState: undefined,
+      },
+    },
+    {
       name: 'chromium',
+      dependencies: ['setup'],
       use: {
         browserName: 'chromium',
         launchOptions: {

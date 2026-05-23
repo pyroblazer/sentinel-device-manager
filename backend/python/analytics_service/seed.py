@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone, timedelta
 
-from .models import AlertStatus, EventIngest, Severity
+from .models import AlertStatus, EventIngest
 from .store import EventStore
 
 # Fixed device IDs matching scripts/seed-dynamodb.sh
@@ -66,10 +66,18 @@ def seed_demo_data(store: EventStore) -> None:
         # (event_index, alert_type, message, initial_status)
         (1, "DOOR_FORCED", "Forced entry detected at north entrance - no badge presented", AlertStatus.ACTIVE),
         (2, "TAMPER_DETECTED", "Tamper alert on sensor enclosure at site-gamma", AlertStatus.ACTIVE),
-        (4, "DEVICE_OFFLINE", "Camera VKD-CAM-003 offline for 30 minutes at site-beta", AlertStatus.ACTIVE),
-        (6, "TEMPERATURE_THRESHOLD", "Temperature 38.5C exceeds threshold at site-beta server room", AlertStatus.ACTIVE),
-        (9, "DOOR_FORCED", "Forced entry at loading dock - resolved by security", AlertStatus.RESOLVED),
-        (14, "ALARM_TRIGGERED", "Fire alarm triggered at site-alpha perimeter - under investigation", AlertStatus.ACKNOWLEDGED),
+        (4, "DEVICE_OFFLINE",
+         "Camera VKD-CAM-003 offline for 30 min at site-beta",
+         AlertStatus.ACTIVE),
+        (6, "TEMPERATURE_THRESHOLD",
+         "Temp 38.5C exceeds threshold at site-beta server room",
+         AlertStatus.ACTIVE),
+        (9, "DOOR_FORCED",
+         "Forced entry at loading dock - resolved by security",
+         AlertStatus.RESOLVED),
+        (14, "ALARM_TRIGGERED",
+         "Fire alarm at site-alpha perimeter - under investigation",
+         AlertStatus.ACKNOWLEDGED),
         (15, "TEMPERATURE_THRESHOLD", "Temperature warning at site-beta acknowledged by ops", AlertStatus.ACKNOWLEDGED),
         (16, "TAMPER_DETECTED", "Lens tamper detected on camera at site-beta", AlertStatus.ACKNOWLEDGED),
     ]
