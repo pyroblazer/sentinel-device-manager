@@ -1,0 +1,79 @@
+# Dockerfile.render - Combined DynamoDB Local + Go REST server for Render free tier
+#
+# Bundles DynamoDB Local (in-memory) and the Sentinel Go REST server
+# into a single container. Demo data is seeded on every startup.
+#
+# Memory layout on Render free tier (512MB):
+#   - DynamoDB Local: ~128MB (-Xmx128m)
+#   - Go REST server: ~30-50MB
+#   - OS + overhead: ~100MB
+#   - Remaining: ~230MB headroom
+
+# ── Stage 1: Build Go binary ──
+FROM golang:1.25-alpine AS go-builder
+
+WORKDIR /build
+COPY backend/go/go.mod backend/go/go.sum ./
+RUN go mod download
+
+COPY backend/go/ .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o sentinel-server ./cmd/server
+
+# ── Stage 2: Runtime with DynamoDB Local + Go ──
+FROM eclipse-temurin:17-jre-alpine
+
+RUN apk add --no-cache curl python3 py3-pip && \
+    pip3 install --no-cache-dir awscli
+
+# Download DynamoDB Local
+RUN mkdir -p /opt/dynamodb && \
+    curl -sL https://d1ni2b6x3wriiu.cloudfront.net/dynamodb_local_latest.tar.gz | \
+    tar -xz -C /opt/dynamodb
+
+WORKDIR /app
+
+COPY --from=go-builder /build/sentinel-server .
+COPY scripts/init-dynamodb.sh /app/init.sh
+COPY scripts/seed-dynamodb.sh /app/seed.sh
+
+# Create startup script
+COPY <<'SCRIPT' /app/start.sh
+#!/bin/sh
+set -e
+
+echo "Starting DynamoDB Local (in-memory)..."
+java -Xmx128m -jar /opt/dynamodb/DynamoDBLocal.jar -inMemory -port 8000 &
+DDB_PID=$!
+
+echo "Waiting for DynamoDB Local to be ready..."
+for i in $(seq 1 30); do
+  if curl -s http://localhost:8000/ > /dev/null 2>&1; then
+    echo "DynamoDB Local is ready."
+    break
+  fi
+  echo "Attempt $i: not ready, waiting 2s..."
+  sleep 2
+done
+
+echo "Creating table and seeding demo data..."
+export DYNAMODB_ENDPOINT=http://localhost:8000
+export SEED_SCRIPT=/app/seed.sh
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+sh /app/init.sh
+
+echo "Starting Sentinel Go REST server..."
+export DYNAMODB_ENDPOINT=http://localhost:8000
+export DYNAMO_DEVICES_TABLE=sentinel-devices
+export SKIP_GRPC=true
+export AUTH_ENABLED=false
+export AWS_REGION=us-east-1
+# PORT is set by Render automatically; main.go reads it directly
+exec /app/sentinel-server
+SCRIPT
+
+RUN chmod +x /app/start.sh
+
+EXPOSE 8080
+
+CMD ["/app/start.sh"]

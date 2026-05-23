@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sentinel-go-api
+    runtime: docker
+    dockerfilePath: ./deploy/docker/Dockerfile.render
+    plan: free
+    envVars:
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: APP_VERSION
+        value: "1.0.0"

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import DeviceList from './components/DeviceList';
 import DeviceDetail from './components/DeviceDetail';
@@ -12,6 +14,10 @@ import BulkOperations from './components/BulkOperations';
 import AdminPanel from './components/AdminPanel';
 
 const App: React.FC = () => {
+  const { isAuthenticated, user, logout } = useAuth();
+
+  if (!isAuthenticated) return <LoginPage />;
+
   return (
     <div className="app">
       <nav className="sidebar">
@@ -66,6 +72,41 @@ const App: React.FC = () => {
             </NavLink>
           </li>
         </ul>
+        <div style={{
+          marginTop: 'auto',
+          paddingTop: 16,
+          borderTop: '1px solid var(--border)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'var(--accent-blue)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 14,
+            }}>
+              {user?.name?.charAt(0) || 'U'}
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>{user?.name}</div>
+              <span className={`badge badge-${user?.role === 'admin' ? 'online' : user?.role === 'operator' ? 'warning' : 'info'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                {user?.role}
+              </span>
+            </div>
+          </div>
+          <button
+            className="btn btn-secondary"
+            style={{ width: '100%', fontSize: 12, padding: '6px 12px' }}
+            onClick={logout}
+          >
+            Sign Out
+          </button>
+        </div>
       </nav>
       <main className="main-content">
         <Routes>

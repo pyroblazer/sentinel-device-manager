@@ -1,8 +1,10 @@
 #!/bin/sh
 
-echo "Waiting for DynamoDB Local..."
+DDB_ENDPOINT="${DYNAMODB_ENDPOINT:-http://dynamodb:8000}"
+
+echo "Waiting for DynamoDB Local at $DDB_ENDPOINT..."
 for i in $(seq 1 30); do
-  if aws dynamodb list-tables --endpoint-url http://dynamodb:8000 --region us-east-1 2>/dev/null; then
+  if aws dynamodb list-tables --endpoint-url "$DDB_ENDPOINT" --region us-east-1 2>/dev/null; then
     echo "DynamoDB is ready."
     break
   fi
@@ -11,7 +13,7 @@ for i in $(seq 1 30); do
 done
 
 echo "Current tables:"
-aws dynamodb list-tables --endpoint-url http://dynamodb:8000 --region us-east-1
+aws dynamodb list-tables --endpoint-url "$DDB_ENDPOINT" --region us-east-1
 
 echo "Creating sentinel-devices table..."
 aws dynamodb create-table \
@@ -19,10 +21,15 @@ aws dynamodb create-table \
   --attribute-definitions AttributeName=device_id,AttributeType=S \
   --key-schema AttributeName=device_id,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST \
-  --endpoint-url http://dynamodb:8000 \
+  --endpoint-url "$DDB_ENDPOINT" \
   --region us-east-1 || echo "Table already exists, continuing..."
 
 echo "Verifying table exists..."
-aws dynamodb describe-table --table-name sentinel-devices --endpoint-url http://dynamodb:8000 --region us-east-1 --query 'Table.TableName'
+aws dynamodb describe-table --table-name sentinel-devices --endpoint-url "$DDB_ENDPOINT" --region us-east-1 --query 'Table.TableName'
 
 echo "DynamoDB initialization complete."
+
+echo "Seeding demo devices..."
+DYNAMODB_ENDPOINT="$DDB_ENDPOINT" sh "${SEED_SCRIPT:-/seed-dynamodb.sh}"
+
+echo "DynamoDB initialization and seeding complete."

@@ -130,7 +130,7 @@ const ConfigTemplates: React.FC = () => {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
             <div style={{ flex: 2, minWidth: 180 }}>
               <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: 4, fontSize: 13 }}>Name</label>
-              <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Template name" />
+              <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. High-Security Camera Profile" />
             </div>
             <div style={{ flex: 1, minWidth: 160 }}>
               <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: 4, fontSize: 13 }}>Device Type</label>
@@ -141,15 +141,15 @@ const ConfigTemplates: React.FC = () => {
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: 4, fontSize: 13 }}>Description</label>
-            <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Brief description of this template" />
+            <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="e.g. Default 4K camera config with motion detection enabled" />
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: 8, fontSize: 13 }}>Config (Key-Value Pairs)</label>
             {configPairs.map((pair, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                <input className="filter-bar" style={{ flex: 1, padding: '6px 10px' }} placeholder="Key" value={pair.key} onChange={e => updateConfigPair(i, 'key', e.target.value)} />
+                <input className="filter-bar" style={{ flex: 1, padding: '6px 10px' }} placeholder="e.g. resolution" value={pair.key} onChange={e => updateConfigPair(i, 'key', e.target.value)} />
                 <span style={{ color: 'var(--text-muted)' }}>=</span>
-                <input className="filter-bar" style={{ flex: 1, padding: '6px 10px' }} placeholder="Value" value={pair.value} onChange={e => updateConfigPair(i, 'value', e.target.value)} />
+                <input className="filter-bar" style={{ flex: 1, padding: '6px 10px' }} placeholder="e.g. 4K" value={pair.value} onChange={e => updateConfigPair(i, 'value', e.target.value)} />
                 {configPairs.length > 1 && (
                   <button className="btn btn-danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => removeConfigPair(i)}>X</button>
                 )}

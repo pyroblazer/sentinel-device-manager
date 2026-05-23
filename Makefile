@@ -1,7 +1,16 @@
 # Sentinel Device Manager - Makefile
 # Common commands for building, testing, and running the platform
+#
+# Prerequisites (Windows): Git for Windows (provides bash, awk, grep, etc.)
+#   Install via: winget install Git.Git
+#   Or: https://git-scm.com/download/win
 
-.PHONY: help dev dev-down test test-go test-python test-firmware test-all \
+# Force bash on all platforms (bash is available via Git for Windows on Windows,
+# and natively on Linux/macOS). This ensures consistent shell syntax everywhere.
+SHELL := bash
+.SHELLFLAGS := -euo pipefail -c
+
+.PHONY: help dev demo dev-down test test-go test-python test-firmware test-all \
         test-coverage test-integration test-e2e test-postman test-playwright \
         docker-up docker-down swagger godoc lint lint-go lint-python \
         clean create-table trivy-scan vuln-check \
@@ -14,7 +23,7 @@ help: ## Show this help
 # --- Local Development ---
 
 dev: ## Fresh start: clean + build + run all services
-	docker compose down -v 2>/dev/null || true
+	docker compose down -v --remove-orphans 2>/dev/null || true
 	docker compose up --build -d
 	@echo ""
 	@echo "Services running:"
@@ -27,6 +36,23 @@ dev: ## Fresh start: clean + build + run all services
 
 dev-down: ## Stop all services and remove volumes
 	docker compose down -v
+
+demo: ## One-command demo: build, seed, and start everything
+	docker compose down -v --remove-orphans 2>/dev/null || true
+	docker compose up --build -d
+	@echo ""
+	@echo "=========================================="
+	@echo "  Sentinel Device Manager - Demo Ready"
+	@echo "=========================================="
+	@echo ""
+	@echo "  Frontend:   http://localhost:3000"
+	@echo "  Login:      admin@sentinel.io / admin"
+	@echo ""
+	@echo "  Go API:     http://localhost:8080"
+	@echo "  Analytics:  http://localhost:8081"
+	@echo ""
+	@echo "  Pre-seeded: 12 devices, 20 events, 8 alerts"
+	@echo "=========================================="
 
 create-table: ## Create DynamoDB table for local development
 	aws dynamodb create-table \
@@ -55,7 +81,8 @@ test-coverage: ## Run Go tests with coverage report (enforces 70%)
 		go tool cover -func=coverage.out && \
 		COVERAGE=$$(go tool cover -func=coverage.out | grep total | awk '{print $$3}' | sed 's/%//') && \
 		echo "Total coverage: $${COVERAGE}%" && \
-		if [ "$$(echo "$$COVERAGE < 70" | bc -l)" -eq 1 ]; then echo "ERROR: Coverage below 70%"; exit 1; fi
+		COVERAGE_INT=$$(printf "%.0f" "$$COVERAGE") && \
+		if [ "$$COVERAGE_INT" -lt 70 ]; then echo "ERROR: Coverage below 70%"; exit 1; fi
 
 test-integration: ## Run integration tests (requires running services or in-memory)
 	cd tests/integration && go test ./... -v -count=1 -timeout 120s
@@ -97,7 +124,8 @@ vuln-check: ## Run Go vulnerability check
 # --- Documentation ---
 
 swagger: ## View Swagger spec
-	@curl -s http://localhost:8080/swagger.json | python3 -m json.tool 2>/dev/null || curl -s http://localhost:8080/swagger.json
+	@curl -s http://localhost:8080/swagger.json | \
+		(python3 -m json.tool 2>/dev/null || python -m json.tool 2>/dev/null || cat)
 
 godoc: ## Start Go documentation server
 	@echo "Open http://localhost:6060/pkg/github.com/sentinel-device-manager/backend/go/"
@@ -106,7 +134,7 @@ godoc: ## Start Go documentation server
 # --- Docker ---
 
 docker-up: ## Build and start all Docker services (fresh)
-	docker compose down -v 2>/dev/null || true
+	docker compose down -v --remove-orphans 2>/dev/null || true
 	docker compose up --build -d
 
 docker-down: ## Stop and remove all Docker resources
@@ -119,15 +147,15 @@ docker-logs: ## Tail logs from all services
 
 clean: ## Remove build artifacts
 	rm -rf backend/go/bin/ backend/go/coverage.out
-	find . -name "*.test" -delete
+	find . -name "*.test" -delete 2>/dev/null || true
 	find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 	rm -rf tests/playwright/node_modules tests/playwright/playwright-report
-	rm -f tests/postman/newman-report.json
+	rm -f tests/postman/newman-report.json 2>/dev/null || true
 
 # --- Observability ---
 
 obs-up: ## Start observability stack (fresh start: app + Prometheus, Grafana, ELK, OTel)
-	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml down -v 2>/dev/null || true
+	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml down -v --remove-orphans 2>/dev/null || true
 	docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml up --build -d
 	@echo "Observability services running:"
 	@echo "  Prometheus:    http://localhost:9091"

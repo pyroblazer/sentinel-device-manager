@@ -116,7 +116,7 @@ const BulkOperations: React.FC = () => {
             fontSize: 13,
             resize: 'vertical',
           }}
-          placeholder="Enter device IDs, one per line&#10;dev-001&#10;dev-002&#10;dev-003"
+          placeholder={"Enter device IDs, one per line:\na1b2c3d4-0001-4000-8000-000000000001\na1b2c3d4-0001-4000-8000-000000000002"}
           value={deviceIdsText}
           onChange={e => setDeviceIdsText(e.target.value)}
         />
@@ -170,7 +170,7 @@ const BulkOperations: React.FC = () => {
               <input
                 className="filter-bar"
                 style={{ flex: 1, padding: '6px 10px' }}
-                placeholder="Field name (e.g. firmware_version)"
+                placeholder="e.g. firmware_version"
                 value={pair.key}
                 onChange={e => updateUpdatePair(i, 'key', e.target.value)}
               />
@@ -178,8 +178,7 @@ const BulkOperations: React.FC = () => {
               <input
                 className="filter-bar"
                 style={{ flex: 1, padding: '6px 10px' }}
-                placeholder="Value"
-                value={pair.value}
+                placeholder="e.g. 2.4.1"
                 onChange={e => updateUpdatePair(i, 'value', e.target.value)}
               />
               {updatePairs.length > 1 && (

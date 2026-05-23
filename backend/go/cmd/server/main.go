@@ -32,6 +32,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -69,7 +70,7 @@ func main() {
 	ddbClient := dynamodb.NewFromConfig(cfg, ddbOpts...)
 
 	tableName := envOrDefault("DYNAMO_DEVICES_TABLE", "sentinel-devices")
-	restPort := envOrDefault("REST_PORT", "8080")
+	restPort := envOrDefault("PORT", envOrDefault("REST_PORT", "8080"))
 	grpcPort := envOrDefault("GRPC_PORT", "9090")
 	jwtSecret := envOrDefault("JWT_SECRET_KEY", "change-me-in-production")
 	appVersion := envOrDefault("APP_VERSION", "1.0.0")
@@ -104,19 +105,23 @@ func main() {
 	// Initialize superapp handler
 	superappHandler := handler.NewSuperappHandler()
 
-	// Start gRPC server
-	grpcLis, err := net.Listen("tcp", ":"+grpcPort)
-	if err != nil {
-		logger.Fatalf("gRPC listen: %v", err)
-	}
-	grpcSrv := grpc.NewServer()
-	pb.RegisterDeviceServiceServer(grpcSrv, grpcHandler)
-	go func() {
-		logger.Printf("gRPC server listening on :%s", grpcPort)
-		if err := grpcSrv.Serve(grpcLis); err != nil {
-			logger.Fatalf("gRPC serve: %v", err)
+	// Start gRPC server (skip in containerized/cloud environments)
+	if envOrDefault("SKIP_GRPC", "") != "true" {
+		grpcLis, err := net.Listen("tcp", ":"+grpcPort)
+		if err != nil {
+			logger.Fatalf("gRPC listen: %v", err)
 		}
-	}()
+		grpcSrv := grpc.NewServer()
+		pb.RegisterDeviceServiceServer(grpcSrv, grpcHandler)
+		go func() {
+			logger.Printf("gRPC server listening on :%s", grpcPort)
+			if err := grpcSrv.Serve(grpcLis); err != nil {
+				logger.Fatalf("gRPC serve: %v", err)
+			}
+		}()
+	} else {
+		logger.Printf("gRPC server skipped (SKIP_GRPC=true)")
+	}
 
 	// Start REST server
 	r := chi.NewRouter()
@@ -138,12 +143,13 @@ func main() {
 	r.Use(bruteForce.Protect)
 
 	// CORS
-	allowedOrigins := envOrDefault("CORS_ALLOWED_ORIGINS", "*")
+	allowedOrigins := strings.Split(envOrDefault("CORS_ALLOWED_ORIGINS", "*"), ",")
+	isWildcard := len(allowedOrigins) == 1 && allowedOrigins[0] == "*"
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{allowedOrigins},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
-		AllowCredentials: true,
+		AllowCredentials: !isWildcard,
 		MaxAge:           300,
 	}))
 

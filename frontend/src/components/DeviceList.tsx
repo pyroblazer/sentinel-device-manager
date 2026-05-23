@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { deviceApi, Device } from '../services/api';
+import DeviceRegistrationForm from './DeviceRegistrationForm';
 
 const DeviceList: React.FC = () => {
   const navigate = useNavigate();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ type: '', status: '' });
+  const [showRegForm, setShowRegForm] = useState(false);
 
   useEffect(() => {
     loadDevices();
@@ -41,22 +43,31 @@ const DeviceList: React.FC = () => {
         <p>Manage cameras, access control, alarms, and sensors</p>
       </div>
 
-      <div className="filter-bar" style={{ marginBottom: 24 }}>
-        <select value={filter.type} onChange={e => setFilter(f => ({ ...f, type: e.target.value }))}>
-          <option value="">All Types</option>
-          <option value="CAMERA">Camera</option>
-          <option value="ACCESS_CONTROL">Access Control</option>
-          <option value="ALARM">Alarm</option>
-          <option value="SENSOR">Sensor</option>
-        </select>
-        <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}>
-          <option value="">All Statuses</option>
-          <option value="ONLINE">Online</option>
-          <option value="OFFLINE">Offline</option>
-          <option value="MAINTENANCE">Maintenance</option>
-          <option value="DECOMMISSIONED">Decommissioned</option>
-        </select>
+      <div className="filter-bar" style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <select value={filter.type} onChange={e => setFilter(f => ({ ...f, type: e.target.value }))}>
+            <option value="">All Types</option>
+            <option value="CAMERA">Camera</option>
+            <option value="ACCESS_CONTROL">Access Control</option>
+            <option value="ALARM">Alarm</option>
+            <option value="SENSOR">Sensor</option>
+          </select>
+          <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}>
+            <option value="">All Statuses</option>
+            <option value="ONLINE">Online</option>
+            <option value="OFFLINE">Offline</option>
+            <option value="MAINTENANCE">Maintenance</option>
+            <option value="DECOMMISSIONED">Decommissioned</option>
+          </select>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowRegForm(!showRegForm)}>
+          {showRegForm ? 'Cancel' : 'Register Device'}
+        </button>
       </div>
+
+      {showRegForm && (
+        <DeviceRegistrationForm onCreated={() => { setShowRegForm(false); loadDevices(); }} />
+      )}
 
       <div className="table-container">
         <div className="table-toolbar">

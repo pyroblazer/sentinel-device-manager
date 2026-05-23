@@ -15,6 +15,7 @@ services:
       - AWS_REGION=us-east-1
     volumes:
       - ./scripts/init-dynamodb.sh:/init-dynamodb.sh:ro
+      - ./scripts/seed-dynamodb.sh:/seed-dynamodb.sh:ro
     entrypoint: ["/bin/sh", "/init-dynamodb.sh"]
 
   go-service:
@@ -53,6 +54,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=test
       - DYNAMODB_ENDPOINT=http://dynamodb:8000
       - OTEL_EXPORTER_OTLP_ENDPOINT=none
+      - DEMO_MODE=true
     depends_on:
       init-dynamodb:
         condition: service_completed_successfully

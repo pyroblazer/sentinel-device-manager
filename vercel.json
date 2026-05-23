@@ -1,0 +1,16 @@
+{
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/build",
+  "installCommand": "cd frontend && npm install",
+  "functions": {
+    "analytics/*.py": {
+      "runtime": "python3.12",
+      "includeFiles": "backend/python/analytics_service/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/v1/events/(.*)", "destination": "/analytics/index" },
+    { "source": "/api/v1/alerts/(.*)", "destination": "/analytics/index" },
+    { "source": "/api/v1/analytics/(.*)", "destination": "/analytics/index" }
+  ]
+}

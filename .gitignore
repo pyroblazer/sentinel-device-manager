@@ -55,3 +55,10 @@ playwright-report/
 # Coverage
 coverage/
 .nyc_output/
+
+# AI tooling
+CLAUDE.md
+
+# AWS scripts (no AWS account)
+scripts/setup-aws-dynamodb.sh
+scripts/seed-aws-dynamodb.sh

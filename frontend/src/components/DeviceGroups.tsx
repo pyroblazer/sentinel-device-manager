@@ -90,7 +90,7 @@ const DeviceGroups: React.FC = () => {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 2, minWidth: 180 }}>
               <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: 4, fontSize: 13 }}>Name</label>
-              <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Group name" />
+              <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. North Wing Cameras" />
             </div>
             <div style={{ flex: 1, minWidth: 140 }}>
               <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: 4, fontSize: 13 }}>Type</label>
@@ -103,7 +103,7 @@ const DeviceGroups: React.FC = () => {
             </div>
             <div style={{ flex: 2, minWidth: 180 }}>
               <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: 4, fontSize: 13 }}>Site ID</label>
-              <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newSite} onChange={e => setNewSite(e.target.value)} placeholder="site-xxx" />
+              <input className="filter-bar" style={{ width: '100%', padding: '8px 12px' }} value={newSite} onChange={e => setNewSite(e.target.value)} placeholder="e.g. site-alpha-001" />
             </div>
             <button className="btn btn-primary" onClick={handleCreate}>Create</button>
           </div>
