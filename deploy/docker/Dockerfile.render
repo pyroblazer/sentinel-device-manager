@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o sentinel-server ./cmd/
 FROM eclipse-temurin:17-jre-alpine
 
 RUN apk add --no-cache curl python3 py3-pip && \
-    pip3 install --no-cache-dir awscli
+    pip3 install --no-cache-dir --break-system-packages awscli
 
 # Download DynamoDB Local
 RUN mkdir -p /opt/dynamodb && \
