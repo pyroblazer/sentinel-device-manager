@@ -21,7 +21,8 @@ export default defineConfig({
   projects: [
     {
       name: 'setup',
-      testMatch: /auth\.setup\.ts/,
+      testDir: '.',
+      testMatch: 'auth.setup.ts',
       use: {
         storageState: undefined,
       },
