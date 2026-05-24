@@ -24,7 +24,7 @@ export default defineConfig({
       testDir: '.',
       testMatch: 'auth.setup.ts',
       use: {
-        storageState: undefined,
+        storageState: { cookies: [], origins: [] },
       },
     },
     {
