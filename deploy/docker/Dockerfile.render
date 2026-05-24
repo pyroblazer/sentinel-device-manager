@@ -27,7 +27,7 @@ RUN apk add --no-cache curl python3 py3-pip && \
 
 # Download DynamoDB Local
 RUN mkdir -p /opt/dynamodb && \
-    curl -sL https://d1ni2b6x3wriiu.cloudfront.net/dynamodb_local_latest.tar.gz | \
+    curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz | \
     tar -xz -C /opt/dynamodb
 
 WORKDIR /app
