@@ -8,6 +8,7 @@
 #   - Go REST server: ~30-50MB
 #   - OS + overhead: ~100MB
 #   - Remaining: ~230MB headroom
+#   DynamoDB Local fetched from S3 (CloudFront mirror deprecated)
 
 # ── Stage 1: Build Go binary ──
 FROM golang:1.25-alpine AS go-builder
