@@ -72,9 +72,12 @@ func main() {
 	tableName := envOrDefault("DYNAMO_DEVICES_TABLE", "sentinel-devices")
 	restPort := envOrDefault("PORT", envOrDefault("REST_PORT", "8080"))
 	grpcPort := envOrDefault("GRPC_PORT", "9090")
-	jwtSecret := envOrDefault("JWT_SECRET_KEY", "change-me-in-production")
+	jwtSecret := os.Getenv("JWT_SECRET_KEY")
 	appVersion := envOrDefault("APP_VERSION", "1.0.0")
 	authEnabled := envOrDefault("AUTH_ENABLED", "true")
+	if authEnabled == "true" && len(jwtSecret) < 32 {
+		log.Fatal("JWT_SECRET_KEY must be set to at least 32 characters when AUTH_ENABLED=true")
+	}
 	otelEndpoint := envOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
 	// Initialize distributed tracing
@@ -168,8 +171,6 @@ func main() {
 	r.Get("/api/v1/compliance/report", complianceReporter.HandleComplianceReport)
 	r.Get("/api/v1/compliance/retention", complianceReporter.HandleRetentionPolicies)
 	r.Get("/api/v1/compliance/incidents", complianceReporter.HandleIncidents)
-	r.Post("/api/v1/compliance/incidents", incidentCreateHandler(complianceReporter))
-	r.Put("/api/v1/compliance/incidents/{incidentID}", incidentUpdateHandler(complianceReporter))
 
 	// OWASP status
 	r.Get("/api/v1/security/owasp", middleware.OWASPHandler)
@@ -200,6 +201,9 @@ func main() {
 				},
 			}))
 		}
+		// Incident writes must be authenticated (previously registered as public routes)
+		r.Post("/api/v1/compliance/incidents", incidentCreateHandler(complianceReporter))
+		r.Put("/api/v1/compliance/incidents/{incidentID}", incidentUpdateHandler(complianceReporter))
 		restHandler.RegisterRoutes(r)
 		superappHandler.RegisterRoutes(r)
 	})

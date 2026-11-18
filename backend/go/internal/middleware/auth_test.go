@@ -612,3 +612,44 @@ func TestExtractBearerToken_WrongScheme(t *testing.T) {
 		t.Errorf("expected empty for non-Bearer, got %s", token)
 	}
 }
+
+func TestJWTAuth_RejectsNoneAlgorithm(t *testing.T) {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none","typ":"JWT"}`))
+	payload, _ := json.Marshal(Claims{UserID: "u1", Role: "admin", Exp: time.Now().Add(time.Hour).Unix()})
+	token := header + "." + base64.RawURLEncoding.EncodeToString(payload) + "."
+
+	handler := JWTAuth(JWTConfig{SecretKey: "secret"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("handler must not run for alg=none")
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestJWTAuth_EnforcesIssuer(t *testing.T) {
+	cfg := JWTConfig{SecretKey: "secret", Issuer: "sentinel-device-manager"}
+	called := false
+	handler := JWTAuth(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true }))
+
+	for _, tc := range []struct {
+		issuer string
+		want   int
+	}{{"other", http.StatusUnauthorized}, {"sentinel-device-manager", http.StatusOK}} {
+		called = false
+		token := generateTestToken(Claims{UserID: "u1", Role: "admin", Issuer: tc.issuer, Exp: time.Now().Add(time.Hour).Unix()}, "secret")
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Fatalf("issuer %q: expected %d, got %d", tc.issuer, tc.want, rec.Code)
+		}
+		if (tc.want == http.StatusOK) != called {
+			t.Fatalf("issuer %q: handler call mismatch", tc.issuer)
+		}
+	}
+}

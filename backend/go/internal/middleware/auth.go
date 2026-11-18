@@ -26,12 +26,14 @@ import (
 
 // Claims represents the parsed JWT payload.
 type Claims struct {
-	UserID   string   `json:"sub"`
-	Role     string   `json:"role"`
-	OrgID    string   `json:"org_id"`
-	Scopes   []string `json:"scopes"`
-	Exp      int64    `json:"exp"`
-	IssuedAt int64    `json:"iat"`
+	UserID    string   `json:"sub"`
+	Role      string   `json:"role"`
+	OrgID     string   `json:"org_id"`
+	Scopes    []string `json:"scopes"`
+	Issuer    string   `json:"iss"`
+	NotBefore int64    `json:"nbf"`
+	Exp       int64    `json:"exp"`
+	IssuedAt  int64    `json:"iat"`
 }
 
 // JWTConfig holds JWT validation parameters.
@@ -53,12 +55,22 @@ func JWTAuth(config JWTConfig) func(http.Handler) http.Handler {
 
 			claims, err := parseJWT(tokenStr, config.SecretKey)
 			if err != nil {
-				writeUnauthorized(w, "invalid token: "+err.Error())
+				// Do not leak parser details to the client
+				writeUnauthorized(w, "invalid token")
 				return
 			}
 
-			if claims.Exp < time.Now().Unix() {
+			now := time.Now().Unix()
+			if claims.Exp < now {
 				writeUnauthorized(w, "token expired")
+				return
+			}
+			if claims.NotBefore != 0 && claims.NotBefore > now {
+				writeUnauthorized(w, "token not yet valid")
+				return
+			}
+			if config.Issuer != "" && claims.Issuer != config.Issuer {
+				writeUnauthorized(w, "invalid token")
 				return
 			}
 
@@ -91,6 +103,18 @@ func parseJWT(tokenStr string, secret string) (*Claims, error) {
 	}
 
 	headerB64, payloadB64, sigB64 := parts[0], parts[1], parts[2]
+
+	// Only HS256 is accepted; reject "none" and any other algorithm
+	headerJSON, err := base64.RawURLEncoding.DecodeString(headerB64)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+	var header struct {
+		Alg string `json:"alg"`
+	}
+	if err := json.Unmarshal(headerJSON, &header); err != nil || header.Alg != "HS256" {
+		return nil, ErrInvalidToken
+	}
 
 	signingInput := headerB64 + "." + payloadB64
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -168,23 +192,23 @@ func isPathAllowed(path string, patterns []string) bool {
 // AuditLogger logs every request for compliance auditing.
 // Implements ISO 27001 A.12.4, SOC 2 CC7.2, ISO 27035.
 type AuditLogger struct {
-	mu     sync.Mutex
+	mu      sync.Mutex
 	entries []AuditEntry
 }
 
 // AuditEntry represents a single auditable event.
 type AuditEntry struct {
-	Timestamp   time.Time `json:"timestamp"`
-	Method      string    `json:"method"`
-	Path        string    `json:"path"`
-	StatusCode  int       `json:"status_code"`
-	UserID      string    `json:"user_id,omitempty"`
-	Role        string    `json:"role,omitempty"`
-	OrgID       string    `json:"org_id,omitempty"`
-	IP          string    `json:"ip"`
-	UserAgent   string    `json:"user_agent"`
-	RequestID   string    `json:"request_id"`
-	Duration    string    `json:"duration"`
+	Timestamp  time.Time `json:"timestamp"`
+	Method     string    `json:"method"`
+	Path       string    `json:"path"`
+	StatusCode int       `json:"status_code"`
+	UserID     string    `json:"user_id,omitempty"`
+	Role       string    `json:"role,omitempty"`
+	OrgID      string    `json:"org_id,omitempty"`
+	IP         string    `json:"ip"`
+	UserAgent  string    `json:"user_agent"`
+	RequestID  string    `json:"request_id"`
+	Duration   string    `json:"duration"`
 }
 
 // NewAuditLogger creates a new audit logger.
@@ -248,11 +272,11 @@ func (al *AuditLogger) GetEntries(limit int) []AuditEntry {
 // Implements ISO 27001 A.12.6 (technical vulnerability management),
 // SOC 2 CC7.1, NIST CSF PR.PT.
 type RateLimiter struct {
-	mu       sync.Mutex
-	clients  map[string]*clientBucket
-	rate     int
-	window   time.Duration
-	cleanup  time.Duration
+	mu      sync.Mutex
+	clients map[string]*clientBucket
+	rate    int
+	window  time.Duration
+	cleanup time.Duration
 }
 
 type clientBucket struct {
@@ -400,7 +424,6 @@ func CORSSecurity(allowedOrigins []string) func(http.Handler) http.Handler {
 		})
 	}
 }
-
 
 func generateRequestID() string {
 	b := make([]byte, 16)
