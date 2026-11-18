@@ -6,13 +6,16 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('admin@sentinel.io');
   const [password, setPassword] = useState('admin');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    const success = login(email, password);
+    setBusy(true);
+    const success = await login(email, password);
+    setBusy(false);
     if (!success) {
-      setError('Invalid credentials. Try admin@sentinel.io / admin');
+      setError('Invalid username or password');
     }
   }
 

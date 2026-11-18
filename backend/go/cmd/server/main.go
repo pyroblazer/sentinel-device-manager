@@ -70,6 +70,7 @@ func main() {
 	ddbClient := dynamodb.NewFromConfig(cfg, ddbOpts...)
 
 	tableName := envOrDefault("DYNAMO_DEVICES_TABLE", "sentinel-devices")
+	usersTableName := envOrDefault("DYNAMO_USERS_TABLE", "sentinel-users")
 	restPort := envOrDefault("PORT", envOrDefault("REST_PORT", "8080"))
 	grpcPort := envOrDefault("GRPC_PORT", "9090")
 	jwtSecret := os.Getenv("JWT_SECRET_KEY")
@@ -107,6 +108,18 @@ func main() {
 
 	// Initialize superapp handler
 	superappHandler := handler.NewSuperappHandler()
+
+	// Real authentication: operator accounts in DynamoDB
+	userRepo := repository.NewUserRepository(ddbClient, usersTableName)
+	authService := service.NewAuthService(userRepo, jwtSecret, "sentinel-device-manager")
+	authHandler := handler.NewAuthHandler(authService)
+	if authEnabled == "true" {
+		if err := authService.EnsureAdminSeed(context.Background(),
+			envOrDefault("SENTINEL_ADMIN_USERNAME", ""),
+			envOrDefault("SENTINEL_ADMIN_PASSWORD", "")); err != nil {
+			structuredLogger.Warn("admin seed failed", zap.Error(err))
+		}
+	}
 
 	// Start gRPC server (skip in containerized/cloud environments)
 	if envOrDefault("SKIP_GRPC", "") != "true" {
@@ -178,6 +191,9 @@ func main() {
 	// Swagger documentation
 	r.Get("/swagger.json", swaggerHandler())
 
+	// Login is public (rate limiting and brute-force protection still apply)
+	authHandler.RegisterRoutes(r)
+
 	// Protected API routes
 	r.Group(func(r chi.Router) {
 		if authEnabled == "true" {
@@ -204,6 +220,7 @@ func main() {
 		// Incident writes must be authenticated (previously registered as public routes)
 		r.Post("/api/v1/compliance/incidents", incidentCreateHandler(complianceReporter))
 		r.Put("/api/v1/compliance/incidents/{incidentID}", incidentUpdateHandler(complianceReporter))
+		authHandler.RegisterProtectedRoutes(r)
 		restHandler.RegisterRoutes(r)
 		superappHandler.RegisterRoutes(r)
 	})

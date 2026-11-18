@@ -1,4 +1,4 @@
-const API_BASE = process.env.REACT_APP_API_BASE ?? 'http://localhost:8080';
+export const API_BASE = process.env.REACT_APP_API_BASE ?? 'http://localhost:8080';
 const ANALYTICS_BASE = process.env.REACT_APP_ANALYTICS_BASE ?? 'http://localhost:8081';
 
 export interface Device {
