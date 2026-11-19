@@ -346,3 +346,33 @@ func TestParseStringPtr(t *testing.T) {
 		t.Error("expected 'test' string pointer")
 	}
 }
+
+func TestHeartbeatEndpoint(t *testing.T) {
+	repo := newTestRepo()
+	svc := service.NewDeviceService(repo)
+	h := NewRESTHandler(svc)
+
+	r := chi.NewRouter()
+	h.RegisterRoutes(r)
+
+	device, _ := svc.CreateDevice(context.Background(), service.CreateDeviceInput{
+		SerialNumber: "VKD-CAM-002", DeviceType: model.DeviceTypeCamera,
+		SiteID: "site-001", OrganizationID: "org-001",
+	})
+
+	// An empty body is a valid ping.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/devices/"+device.DeviceID+"/heartbeat", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Unknown devices are reported as missing.
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/devices/nonexistent/heartbeat", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}

@@ -66,11 +66,11 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"user_id":  claims.UserID,
-		"role":     claims.Role,
-		"org_id":   claims.OrgID,
-		"scopes":   claims.Scopes,
-		"issuer":   claims.Issuer,
-		"exp":      claims.Exp,
+		"user_id": claims.UserID,
+		"role":    claims.Role,
+		"org_id":  claims.OrgID,
+		"scopes":  claims.Scopes,
+		"issuer":  claims.Issuer,
+		"exp":     claims.Exp,
 	})
 }

@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  GO_VERSION: "1.25"
+  GO_VERSION: "1.26"
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
 
@@ -24,13 +24,13 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.11
+          version: v2.15
           working-directory: backend/go
           args: --timeout=5m
       - name: Lint firmware
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.11
+          version: v2.15
           working-directory: firmware
           args: --timeout=5m
 
